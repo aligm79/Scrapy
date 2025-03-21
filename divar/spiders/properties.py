@@ -3,6 +3,7 @@ from urllib.parse import urljoin, unquote
 import requests
 from scrapy.selector import Selector
 import time
+import random
 
 class PropertiesSpider(scrapy.Spider):
     name = 'properties'
@@ -17,7 +18,7 @@ class PropertiesSpider(scrapy.Spider):
                 url = urljoin(response.url, href)
                 request = requests.get(url)
                 request = Selector(text=request.text)
-                time.sleep(10)
+                time.sleep(random.randint(10,15))
                 
                 area = request.xpath('//*[@id="app"]/div[2]/div/main/article/div/div[1]/section[1]/div[4]/table[1]/tbody/tr/td[1]/text()').get()
                 construction_date = request.xpath('//*[@id="app"]/div[2]/div/main/article/div/div[1]/section[1]/div[4]/table[1]/tbody/tr/td[2]/text()').get()
@@ -36,6 +37,7 @@ class PropertiesSpider(scrapy.Spider):
 
                 print("*"*100, flush=True)
                 print(extra_details)
+                print(area, elevator, parking, storage_room, total_price, floor_number, neighborhood)
                 print(url)
                 yield {
                     "area": int(area) if area else 0,
