@@ -1,3 +1,4 @@
+import re
 import scrapy
 from urllib.parse import urljoin, unquote
 import requests
@@ -10,6 +11,32 @@ class PropertiesSpider(scrapy.Spider):
     allowed_domains = ['divar.ir']
     start_urls = ['https://divar.ir/s/tehran/buy-apartment']
 
+
+    def extract_floor_number(self, text):
+        if not text:
+            return 0
+        
+        if match := re.search(r'(\d+)\s*از\s*\d+', text):
+            return int(match.group(1))
+
+        if match := re.search(r'\+(\d+)', text):
+            return f">{match.group(1)}"
+        
+        if text.isdigit():
+            return int(text)
+        
+        return 0
+    
+    def extract_construction_date(self, text):
+         if "قبل" in text:
+              return 1369
+         return int(text)
+
+    def extract_room_number(self, text):
+            if "بدون" in text:
+                return 0
+            return int(text)
+
     def parse(self, response):
         hrefs = response.xpath('//*[@id="post-list-container-id"]/div[1]/div/div//a/@href').getall()
 
@@ -18,7 +45,7 @@ class PropertiesSpider(scrapy.Spider):
                 url = urljoin(response.url, href)
                 request = requests.get(url)
                 request = Selector(text=request.text)
-                time.sleep(random.randint(10,15))
+                time.sleep(random.randint(10,30))
                 
                 area = request.xpath('//*[@id="app"]/div[2]/div/main/article/div/div[1]/section[1]/div[4]/table[1]/tbody/tr/td[1]/text()').get()
                 construction_date = request.xpath('//*[@id="app"]/div[2]/div/main/article/div/div[1]/section[1]/div[4]/table[1]/tbody/tr/td[2]/text()').get()
@@ -36,17 +63,15 @@ class PropertiesSpider(scrapy.Spider):
                 neighborhood = request.xpath('//div[contains(text(), "پیش در")]/text()').get()
 
                 print("*"*100, flush=True)
-                print(extra_details)
-                print(area, elevator, parking, storage_room, total_price, floor_number, neighborhood)
                 print(url)
                 yield {
                     "area": int(area) if area else 0,
-                    "construction_date": int(construction_date) if construction_date else 0,
-                    "number_of_rooms": int(number_of_rooms) if number_of_rooms else 0,
+                    "construction_date": self.extract_construction_date(construction_date) if construction_date else 0,
+                    "number_of_rooms": self.extract_room_number(number_of_rooms) if number_of_rooms else 0,
                     "elevator": elevator,
                     "parking": parking,
                     "storage_room": storage_room,
-                    "floor_number": int(floor_number[0]) if floor_number else 0,
+                    "floor_number": self.extract_floor_number(floor_number),
                     "total_price": total_price,
                     "neighborhood": neighborhood}
             # except:
